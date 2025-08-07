@@ -1,5 +1,5 @@
+from collections.abc import ByteString
 from dataclasses import dataclass
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import socket
 from _thread import start_new_thread
 from sys import exit
@@ -16,72 +16,51 @@ class Proxy:
 
     def start(self):
         print("Starting new proxy...")
-        self.socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((self.ip, self.port))
-        self.socket.listen(self.max_connections)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind((self.ip, self.port))
+        self.sock.listen()
         try:
-            while True:
-                conn, addr = self.socket.accept()
-                data = conn.recv(self.buffer_size)
-                _ = start_new_thread(self._connection_string, (conn, data, addr))
+            conn, addr = self.sock.accept()
+            data = conn.recv(self.buffer_size)
+            print(data)
+            start_new_thread(self._connection_string, (data, conn, addr))
         except Exception as e:
-            self.socket.close()
-            print(f"! Error {e}")
+            print(f"Failed to get request. {e}")
+        finally:
+            self.sock.close()
+            exit(1)
 
-    def _connection_string(
-        self, conn: socket.socket, data: str, addr: socket._RetAddress
-    ):
-        print(data)
+    def _connection_string(self, data: ByteString, conn, addr):
+        # get server IP/URL from request
         first_line = data.split(b"\n")[0]
-        http_position = data.find(b"://")
-        url = first_line.split()[1]
-        temp = first_line
-        if http_position:
-            temp = url[http_position + 3 :]  # 3 = len('://')
-        port_pos = temp.find(b":")
-        web_pos = temp.find(b"/")
-        if not web_pos:
-            web_pos = len(temp)
-        webserver = ""
-        port = -1
-        if not port_pos or web_pos < port_pos:
-            port = 80
-            webserver = temp[:web_pos]
-        else:
-            port = int((temp[(port_pos + 1) :])[: web_pos - port_pos - 1])
-            webserver = temp[:port_pos]
-        self._proxy_server(webserver, port, conn, addr, data)
+        # check for :// then url
+        # else get ip and port
+        # if no port assume 80
+        # if no ip assume localhost
+        url_pos = first_line.find(b"://")
+        if not url_pos:
+            ip_pos = first_line.find(b":")
+            ip = first_line[:ip_pos].split()[-1]
+            if not ip:
+                ip = "0.0.0.0"
+            port = first_line[ip_pos:].split()[0]
+            if not port:
+                port = 80
+            # _proxy_server here
+        if url_pos:
+            url = first_line[url_pos + 3].split()[
+                0
+            ]  # get url after http://, return until first whitespace
+        # _proxy_server here
+        # get requested data
+        pass
 
     def _proxy_server(
         self,
-        webserver: str,
-        port: int,
-        conn: socket.socket,
-        addr: socket._RetAddress,
-        data,
     ):
-        sock = None
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((webserver, port))
-            _ = sock.send(data)
-
-            while 1:
-                reply = sock.recv(self.buffer_size)
-                if not len(reply):
-                    break
-                _ = conn.send(reply)
-
-                data_size_kb = float(len(reply))
-                data_size_kb = f"{data_size_kb/1024.0:.2f} KB"
-                print("Request Done: %s => %s <=" % (str(addr[0]), str(data_size_kb)))
-
-        except socket.error:
-            print(sock.error)
-            exit(1)
-        finally:
-            sock.close()
-            conn.close()
+        # get data from sending the request
+        # return it
+        pass
 
 
 def reverse_proxy():
