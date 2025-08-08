@@ -23,7 +23,7 @@ class Proxy:
             conn, addr = self.sock.accept()
             data = conn.recv(self.buffer_size)
             print(data)
-            start_new_thread(self._connection_string, (data, conn, addr))
+            _ = start_new_thread(self._connection_string, (data, conn, addr))
         except Exception as e:
             print(f"Failed to get request. {e}")
         finally:
@@ -37,23 +37,22 @@ class Proxy:
         # else get ip and port
         # if no port assume 80
         # if no ip assume localhost
-        url_pos = first_line.find(b"://")
-        if not url_pos:
-            ip_pos = first_line.find(b":")
-            ip = first_line[:ip_pos].split()[-1]
-            if not ip:
-                ip = "0.0.0.0"
-            port = first_line[ip_pos:].split()[0]
-            if not port:
-                port = 80
-            # _proxy_server here
+        url = first_line.split()[1]
+        url_pos = url.find(b"://")
         if url_pos:
-            url = first_line[url_pos + 3].split()[
+            url = first_line[web_pos + 3 :].split()[
                 0
             ]  # get url after http://, return until first whitespace
-        # _proxy_server here
-        # get requested data
-        pass
+        ip_pos = url.find(b":")
+        web_pos = url.find(b"/")
+        ip = url[:ip_pos].split()[-1]
+        if not ip:
+            ip = "0.0.0.0"
+        port = int(url[ip_pos:web_pos].split()[0])
+        if not port:
+            port = 80
+        webserver = url[webpos:].split()[0]
+        self._proxy_server(webserver, data, conn, addr)
 
     def _proxy_server(
         self,
