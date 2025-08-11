@@ -31,12 +31,7 @@ class Proxy:
             exit(1)
 
     def _connection_string(self, data: ByteString, conn, addr):
-        # get server IP/URL from request
         first_line = data.split(b"\n")[0]
-        # check for :// then url
-        # else get ip and port
-        # if no port assume 80
-        # if no ip assume localhost
         url = first_line.split()[1]
         url_pos = url.find(b"://")
         if url_pos:
