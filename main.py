@@ -47,14 +47,26 @@ class Proxy:
         if not port:
             port = 80
         webserver = url[webpos:].split()[0]
-        self._proxy_server(webserver, data, conn, addr)
+        self._proxy_server(webserver, port, data, conn)
 
-    def _proxy_server(
-        self,
-    ):
-        # get data from sending the request
-        # return it
-        pass
+    def _proxy_server(self, webserver, port, data, conn):
+        sock = None
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((webserver, port))
+            _ = sock.send(data)
+
+            while 1:
+                reply = sock.recv(self.buffer_size)
+                if not len(reply):
+                    break
+                _ = conn.send(reply)
+        except socket.error:
+            print(sock.error)
+            exit(1)
+        finally:
+            sock.close()
+            conn.close()
 
 
 def reverse_proxy():
